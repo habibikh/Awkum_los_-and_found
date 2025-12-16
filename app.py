@@ -1,27 +1,4 @@
-# ============================================================================
-# AWKUM Lost & Found - Google Colab Complete Setup
-# Run each cell in sequence for a live demo!
-
-
-# ============================================================================
-# CELL 2: Configuration (⚠️ EDIT THIS SECTION)
-# ============================================================================
-import os
-
-# ⚠️ IMPORTANT: Replace with your actual Groq API key
-# Get your free API key from: https://console.groq.com/
-GROQ_API_KEY = "YOUR_GROQ_API_KEY_HERE"
-
-# Set environment variable
-os.environ["GROQ_API_KEY"] = GROQ_API_KEY
-
-print("✅ Configuration set!")
-print("⚠️  Note: AI chat will work only if you set a valid Groq API key above")
-
-# ============================================================================
-# CELL 3: Create Streamlit App
-# ============================================================================
-app_code = '''import streamlit as st
+import streamlit as st
 from groq import Groq
 import json
 import os
@@ -35,16 +12,29 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Backend Configuration
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+# Backend Configuration - Secure API Key Loading
+GROQ_API_KEY = None
 
+# Try to load from Streamlit secrets (for cloud deployment)
+try:
+    GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "")
+except:
+    pass
+
+# If not in secrets, try environment variable (for local development)
+if not GROQ_API_KEY:
+    GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+
+# Initialize Groq client
 client = None
 if GROQ_API_KEY and GROQ_API_KEY != "YOUR_GROQ_API_KEY_HERE":
     try:
         client = Groq(api_key=GROQ_API_KEY)
     except Exception as e:
-        st.sidebar.warning(f"⚠️ Groq API initialization failed")
+        st.sidebar.warning(f"⚠️ AI initialization failed")
         client = None
+else:
+    st.sidebar.info("ℹ️ AI chat disabled: Configure GROQ_API_KEY to enable")
 
 # Custom CSS
 st.markdown("""
@@ -335,7 +325,7 @@ def ai_chat(message):
     st.session_state.chat_history.append({"role": "user", "content": message})
     
     if client is None:
-        bot_response = "⚠️ AI service is currently unavailable. Please configure your Groq API key in the notebook."
+        bot_response = "⚠️ AI service is currently unavailable. Please configure your Groq API key."
     else:
         try:
             api_messages = [
@@ -594,7 +584,7 @@ elif st.session_state.current_page == "AI Chat":
     st.markdown('<h2 class="section-title">🤖 AI Assistant</h2>', unsafe_allow_html=True)
     
     if client is None:
-        st.warning("⚠️ AI chat requires a valid Groq API key. Please set it in Cell 2 of the notebook.")
+        st.warning("⚠️ AI chat requires a valid Groq API key. Add GROQ_API_KEY to your environment or Streamlit secrets.")
     
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     
@@ -640,114 +630,3 @@ st.markdown("""
     <p style="font-size: 0.95rem; color: #888;">Powered by AI | Built with ❤️ for AWKUM Community</p>
 </div>
 """, unsafe_allow_html=True)
-'''
-
-# Write the app to a file
-with open('app.py', 'w', encoding='utf-8') as f:
-    f.write(app_code)
-
-print("✅ Streamlit app file created successfully: app.py")
-
-# ============================================================================
-# CELL 4: Run Streamlit with Public URL using Cloudflare Tunnel
-# ============================================================================
-print("\n" + "="*70)
-print("🚀 STARTING STREAMLIT APP WITH CLOUDFLARE TUNNEL")
-print("="*70)
-
-# Kill any existing streamlit and cloudflared processes
-!pkill streamlit
-!pkill cloudflared
-
-# Download and install cloudflared
-print("\n📥 Installing Cloudflare Tunnel...")
-!wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-!dpkg -i cloudflared-linux-amd64.deb > /dev/null 2>&1
-print("✅ Cloudflare Tunnel installed!")
-
-import subprocess
-import threading
-import time
-import re
-
-# Start streamlit in background
-def run_streamlit():
-    subprocess.run(['streamlit', 'run', 'app.py', '--server.port', '8501', '--server.address', 'localhost', '--server.headless', 'true'])
-
-# Start Streamlit in a separate thread
-print("\n⏳ Starting Streamlit server...")
-thread = threading.Thread(target=run_streamlit)
-thread.daemon = True
-thread.start()
-
-# Wait for Streamlit to start
-time.sleep(8)
-
-# Start Cloudflare Tunnel
-print("\n🌐 Creating Cloudflare Tunnel (this may take 10-15 seconds)...")
-tunnel_process = subprocess.Popen(
-    ['cloudflared', 'tunnel', '--url', 'http://localhost:8501'],
-    stdout=subprocess.PIPE,
-    stderr=subprocess.STDOUT,
-    universal_newlines=True,
-    bufsize=1
-)
-
-# Wait and extract the public URL
-public_url = None
-max_attempts = 30
-attempt = 0
-
-while attempt < max_attempts and not public_url:
-    line = tunnel_process.stdout.readline()
-    if line:
-        # Look for the trycloudflare.com URL
-        if 'trycloudflare.com' in line:
-            url_match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line)
-            if url_match:
-                public_url = url_match.group(0)
-                break
-    time.sleep(0.5)
-    attempt += 1
-
-print("\n" + "="*70)
-print("✅ YOUR APPLICATION IS NOW LIVE!")
-print("="*70)
-
-if public_url:
-    print(f"\n🎉 PUBLIC URL: {public_url}")
-    print(f"\n📱 Click the link above to access your app!")
-else:
-    print("\n⚠️ Could not automatically extract URL.")
-    print("Look for a URL starting with 'https://' and ending with '.trycloudflare.com'")
-    print("Check the logs above or below this message.")
-
-print("\n" + "="*70)
-print("📝 INSTRUCTIONS:")
-print("="*70)
-print("1. Click on the Cloudflare URL above (ends with .trycloudflare.com)")
-print("2. Open it in your browser")
-print("3. Your AWKUM Lost & Found app is now live!")
-print("4. Share this URL with anyone to demo your app")
-print("5. The app will stay active as long as this cell is running")
-print("6. To stop, click the stop button ⏹️ in Colab")
-print("\n💡 Benefits of Cloudflare Tunnel:")
-print("   ✅ NO password required")
-print("   ✅ FREE forever")
-print("   ✅ Fast and reliable")
-print("   ✅ No account needed")
-print("="*70)
-
-# Keep the tunnel running and show live logs
-print("\n📊 LIVE STATUS:")
-print("Server is running... Press stop button to terminate\n")
-
-try:
-    # Keep reading output to show any errors
-    while True:
-        time.sleep(1)
-except KeyboardInterrupt:
-    print("\n\n🛑 Shutting down server...")
-    tunnel_process.terminate()
-    !pkill streamlit
-    !pkill cloudflared
