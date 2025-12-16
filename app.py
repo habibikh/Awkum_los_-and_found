@@ -1,14 +1,7 @@
 # ============================================================================
 # AWKUM Lost & Found - Google Colab Complete Setup
 # Run each cell in sequence for a live demo!
-# ============================================================================
 
-# ============================================================================
-# CELL 1: Install Dependencies
-# ============================================================================
-print("📦 Installing required packages...")
-!pip install streamlit groq -q
-print("✅ Installation complete!")
 
 # ============================================================================
 # CELL 2: Configuration (⚠️ EDIT THIS SECTION)
